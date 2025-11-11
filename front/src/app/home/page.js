@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-//Prueba pull request
+
 export default function HomePage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
