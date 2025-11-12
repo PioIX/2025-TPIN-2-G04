@@ -1,8 +1,8 @@
-// Sección MySQL del código
+// modulos/mysql.js
 const mySql = require("mysql2/promise");
 
 /**
- * Objeto con la configuración de la base de datos MySQL a utilizar.
+ * Configuración de la base de datos
  */
 const SQL_CONFIGURATION_DATA = {
   host: process.env.MYSQL_HOST,
@@ -10,25 +10,30 @@ const SQL_CONFIGURATION_DATA = {
   password: process.env.MYSQL_PASSWORD,
   database: process.env.MYSQL_DB,
   port: 3306,
-  charset: 'UTF8_GENERAL_CI'
-}
+  charset: "UTF8_GENERAL_CI"
+};
 
 /**
- * Realiza una query a la base de datos MySQL indicada en el archivo "mysql.js".
- * @param {String} queryString Query que se desea realizar. Textual como se utilizaría en el MySQL Workbench.
- * @returns Respuesta de la base de datos. Suele ser un vector de objetos.
+ * Ejecuta una consulta MySQL y devuelve los resultados
  */
-exports.realizarQuery = async function (queryString)
-{
-  let returnObject;
+exports.realizarQuery = async function (queryString) {
   let connection;
   try {
     connection = await mySql.createConnection(SQL_CONFIGURATION_DATA);
-    returnObject = await connection.execute(queryString);
-  } catch(err) {
-    console.log(err);
+
+    // 👇 Ejecuta la query
+    const [rows] = await connection.execute(queryString);
+
+    // 👇 Devuelve los resultados
+    return rows;
+
+  } catch (err) {
+    // 👇 Muestra claramente el error en la consola
+    console.error("❌ ERROR en realizarQuery():", err.message);
+    console.error("📜 Query que falló:", queryString);
+    throw err; // 👈 Esto hace que el error se propague al controlador
   } finally {
-    if(connection && connection.end) connection.end();
+    // 👇 Cierra la conexión
+    if (connection && connection.end) await connection.end();
   }
-  return returnObject[0];
-}
+};
