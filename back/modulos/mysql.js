@@ -1,5 +1,5 @@
 // modulos/mysql.js
-const mySql = require("mysql2/promise");
+const mysql = require("mysql2/promise");
 
 /**
  * Configuración de la base de datos
@@ -10,30 +10,41 @@ const SQL_CONFIGURATION_DATA = {
   password: process.env.MYSQL_PASSWORD,
   database: process.env.MYSQL_DB,
   port: 3306,
-  charset: "UTF8_GENERAL_CI"
+  charset: "UTF8MB4_GENERAL_CI",
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+};
+
+// Pool de conexiones para mejor rendimiento
+const pool = mysql.createPool(SQL_CONFIGURATION_DATA);
+
+/**
+ * Ejecuta una consulta preparada (SEGURA contra SQL Injection)
+ * @param {string} queryString - Query con placeholders ?
+ * @param {Array} params - Array de parámetros para la query
+ * @returns {Promise<Array>} Resultados de la query
+ */
+exports.realizarQuery = async function (queryString, params = []) {
+  try {
+    const [rows] = await pool.execute(queryString, params);
+    return rows;
+  } catch (err) {
+    console.error("❌ ERROR en realizarQuery():", err.message);
+    console.error("📜 Query que falló:", queryString);
+    console.error("📦 Parámetros:", params);
+    throw err;
+  }
 };
 
 /**
- * Ejecuta una consulta MySQL y devuelve los resultados
+ * Cierra el pool de conexiones (usar solo al cerrar la aplicación)
  */
-exports.realizarQuery = async function (queryString) {
-  let connection;
+exports.closePool = async function () {
   try {
-    connection = await mySql.createConnection(SQL_CONFIGURATION_DATA);
-
-    // 👇 Ejecuta la query
-    const [rows] = await connection.execute(queryString);
-
-    // 👇 Devuelve los resultados
-    return rows;
-
+    await pool.end();
+    console.log("✅ Pool de conexiones cerrado correctamente");
   } catch (err) {
-    // 👇 Muestra claramente el error en la consola
-    console.error("❌ ERROR en realizarQuery():", err.message);
-    console.error("📜 Query que falló:", queryString);
-    throw err; // 👈 Esto hace que el error se propague al controlador
-  } finally {
-    // 👇 Cierra la conexión
-    if (connection && connection.end) await connection.end();
+    console.error("❌ Error al cerrar pool:", err.message);
   }
 };
