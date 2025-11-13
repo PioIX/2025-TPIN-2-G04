@@ -10,7 +10,7 @@ import {
   onPlayerJoined, 
   onPlayerLeft,
   removeListener 
-} from "@/lib/websocket";
+} from "../../../lib/websocket";
 import { gameAPI, moveAPI } from "../../../lib/api";
 
 export default function GamePage() {

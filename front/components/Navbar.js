@@ -1,7 +1,7 @@
 // components/Navbar.js
 "use client";
 import { useRouter } from "next/navigation";
-import { userAPI } from "@/lib/api";
+import { userAPI } from "../../../lib/api";
 import { useState, useEffect } from "react";
 
 export default function Navbar() {
