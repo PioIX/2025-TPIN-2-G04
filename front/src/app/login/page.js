@@ -1,7 +1,7 @@
 "use client";
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { userAPI } from "../../../lib/api";
 import styles from "./page.module.css";
 
 export default function LoginPage() {
@@ -11,101 +11,104 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    const endpoint = isRegister
-      ? "http://localhost:3001/api/users/register"
-      : "http://localhost:3001/api/users/login";
-
-    const body = isRegister
-      ? { username, email, password }
-      : { email, password };
+    setLoading(true);
+    setMessage("");
 
     try {
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setMessage(data.message || "Error de autenticación");
-        return;
-      }
-
       if (isRegister) {
-        setMessage("Cuenta creada con éxito. Ahora iniciá sesión ✨");
+        // Registrar
+        await userAPI.register(username, email, password);
+        setMessage("✨ Cuenta creada con éxito. Ahora iniciá sesión");
         setIsRegister(false);
+        // Limpiar campos
+        setUsername("");
+        setPassword("");
       } else {
-        localStorage.setItem("user", JSON.stringify(data.user));
+        // Login
+        const data = await userAPI.login(email, password);
+        console.log("Login exitoso:", data);
         router.push("/home");
       }
     } catch (err) {
-      console.error(err);
-      setMessage("Error de conexión con el servidor");
+      console.error("Error:", err);
+      setMessage(err.message || "Error de autenticación");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className={styles.container}>
-      <div className={styles.card}>
-        <h1 className={styles.title}>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <div className="bg-slate-800/90 backdrop-blur-sm p-10 rounded-2xl shadow-2xl w-full max-w-md border border-slate-700">
+        <h1 className="text-4xl font-bold text-center mb-8 text-white">
           {isRegister ? "🧩 Crear Cuenta" : "♟️ Iniciar Sesión"}
         </h1>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="space-y-5">
           {isRegister && (
             <input
-              className={styles.input}
+              className="w-full p-4 rounded-lg bg-slate-700 text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-purple-500 transition"
               type="text"
               placeholder="Nombre de usuario"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
+              disabled={loading}
             />
           )}
 
           <input
-            className={styles.input}
+            className="w-full p-4 rounded-lg bg-slate-700 text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-purple-500 transition"
             type="email"
             placeholder="Correo electrónico"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            disabled={loading}
           />
 
           <input
-            className={styles.input}
+            className="w-full p-4 rounded-lg bg-slate-700 text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-purple-500 transition"
             type="password"
             placeholder="Contraseña"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            disabled={loading}
+            minLength={6}
           />
 
-          <button className={styles.button} type="submit">
-            {isRegister ? "Registrarse" : "Iniciar sesión"}
+          <button
+            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-4 rounded-lg transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? "⏳ Cargando..." : isRegister ? "Registrarse" : "Iniciar sesión"}
           </button>
         </form>
 
         {message && (
           <p
-            style={{
-              color: message.includes("éxito") ? "limegreen" : "red",
-              marginTop: "10px",
-            }}
+            className={`text-center mt-5 font-medium ${
+              message.includes("éxito") || message.includes("✨")
+                ? "text-green-400"
+                : "text-red-400"
+            }`}
           >
             {message}
           </p>
         )}
 
         <p
-          className={styles.link}
-          onClick={() => setIsRegister(!isRegister)}
+          className="text-center mt-6 text-slate-300 hover:text-white cursor-pointer transition"
+          onClick={() => {
+            setIsRegister(!isRegister);
+            setMessage("");
+          }}
         >
           {isRegister
             ? "¿Ya tenés cuenta? Iniciá sesión"

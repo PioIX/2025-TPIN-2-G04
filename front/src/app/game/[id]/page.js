@@ -1,78 +1,236 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import io from "socket.io-client";
-
-const socket = io("http://localhost:3001");
+import { 
+  connectSocket, 
+  joinGame, 
+  leaveGame, 
+  sendMove, 
+  onMove, 
+  onPlayerJoined, 
+  onPlayerLeft,
+  removeListener 
+} from "@/lib/websocket";
+import { gameAPI, moveAPI } from "../../../lib/api";
 
 export default function GamePage() {
   const { id } = useParams();
   const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [game, setGame] = useState(null);
   const [moves, setMoves] = useState([]);
   const [moveInput, setMoveInput] = useState("");
+  const [playersCount, setPlayersCount] = useState(1);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const user = localStorage.getItem("user");
-    if (!user) router.push("/login");
+    // Verificar usuario
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) {
+      router.push("/login");
+      return;
+    }
+    setUser(JSON.parse(storedUser));
 
-    socket.emit("joinGame", id);
+    // Cargar información de la partida
+    loadGameData();
 
-    socket.on("move", (data) => {
-      setMoves((prev) => [...prev, `${data.player}: ${data.move}`]);
+    // Conectar WebSocket
+    const socket = connectSocket();
+    joinGame(id);
+
+    // Escuchar eventos
+    onPlayerJoined((data) => {
+      console.log("Jugador se unió:", data);
+      setPlayersCount(data.playersCount);
     });
 
+    onPlayerLeft((data) => {
+      console.log("Jugador se fue:", data);
+      setPlayersCount((prev) => Math.max(1, prev - 1));
+    });
+
+    onMove((data) => {
+      console.log("Movimiento recibido:", data);
+      setMoves((prev) => [
+        ...prev,
+        `${data.player}: ${data.move} (${data.moveNotation || ""})`
+      ]);
+    });
+
+    // Cleanup
     return () => {
-      socket.emit("leaveGame", id);
-      socket.off("move");
+      leaveGame(id);
+      removeListener("move");
+      removeListener("playerJoined");
+      removeListener("playerLeft");
     };
   }, [id]);
 
-  const enviarMovimiento = () => {
-    const user = JSON.parse(localStorage.getItem("user"));
-    if (!moveInput) return;
+  const loadGameData = async () => {
+    try {
+      // Cargar información de la partida
+      const gameData = await gameAPI.getById(id);
+      setGame(gameData);
 
-    const data = { gameId: id, move: moveInput, player: user.username };
-    socket.emit("move", data);
-    setMoveInput("");
+      // Cargar movimientos previos
+      const movesData = await moveAPI.getByGame(id);
+      const formattedMoves = movesData.map(
+        (m) => `Jugador ${m.player_id}: ${m.move_notation}`
+      );
+      setMoves(formattedMoves);
+    } catch (err) {
+      console.error("Error al cargar partida:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white">
-      <h1 className="text-3xl font-bold mb-6">Partida #{id}</h1>
+  const enviarMovimiento = async () => {
+    if (!moveInput.trim() || !user) return;
 
-      <div className="bg-slate-800 p-8 rounded-2xl shadow-lg w-96 space-y-4">
-        <div className="h-56 overflow-y-auto bg-slate-700 p-4 rounded">
-          {moves.length === 0 ? (
-            <p className="text-slate-400 text-sm text-center">Aún no hay movimientos</p>
-          ) : (
-            moves.map((m, i) => (
-              <p key={i} className="text-sm">{m}</p>
-            ))
-          )}
+    try {
+      // Guardar en BD
+      const moveNumber = moves.length + 1;
+      await moveAPI.add(id, moveInput, moveNumber);
+
+      // Enviar por WebSocket
+      sendMove(id, moveInput, user.username, moveInput);
+
+      // Agregar a la lista local
+      setMoves((prev) => [...prev, `${user.username}: ${moveInput}`]);
+      setMoveInput("");
+    } catch (err) {
+      console.error("Error al enviar movimiento:", err);
+      alert(err.message || "Error al enviar movimiento");
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter") {
+      enviarMovimiento();
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+        <div className="text-center">
+          <div className="text-6xl mb-4">♟️</div>
+          <p className="text-xl">Cargando partida...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-8">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">
+            ♟️ Partida <span className="text-purple-400">#{id}</span>
+          </h1>
+          <div className="flex gap-4 items-center">
+            <div className="bg-slate-800 px-4 py-2 rounded-lg">
+              👥 {playersCount} jugador{playersCount !== 1 ? "es" : ""}
+            </div>
+            <button
+              onClick={() => router.push("/home")}
+              className="bg-slate-700 hover:bg-slate-600 px-6 py-2 rounded-lg font-semibold transition"
+            >
+              ← Volver
+            </button>
+          </div>
         </div>
 
-        <input
-          type="text"
-          placeholder="Ej: e2 a e4"
-          className="w-full p-3 rounded bg-slate-700 text-white text-center outline-none"
-          value={moveInput}
-          onChange={(e) => setMoveInput(e.target.value)}
-        />
+        {/* Estado de la partida */}
+        {game && (
+          <div className="bg-slate-800/90 backdrop-blur-sm p-4 rounded-lg mb-6 border border-slate-700">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-slate-400">Estado:</p>
+                <p className="font-semibold text-lg">
+                  {game.status === "waiting" && "⏳ Esperando jugador"}
+                  {game.status === "ongoing" && "🎮 En curso"}
+                  {game.status === "finished" && "✅ Finalizada"}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-slate-400">Jugadores:</p>
+                <p className="font-semibold">
+                  {game.player1_id} vs {game.player2_id || "..."}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
-        <button
-          onClick={enviarMovimiento}
-          className="w-full bg-emerald-500 hover:bg-emerald-600 py-3 rounded font-semibold"
-        >
-          Enviar movimiento
-        </button>
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Panel de movimientos */}
+          <div className="bg-slate-800/90 backdrop-blur-sm p-6 rounded-2xl shadow-2xl border border-slate-700">
+            <h2 className="text-xl font-bold mb-4">📜 Historial de Movimientos</h2>
+            
+            <div className="h-96 overflow-y-auto bg-slate-900/50 p-4 rounded-lg mb-4 space-y-2">
+              {moves.length === 0 ? (
+                <p className="text-slate-400 text-sm text-center py-8">
+                  Aún no hay movimientos
+                </p>
+              ) : (
+                moves.map((m, i) => (
+                  <div
+                    key={i}
+                    className="bg-slate-700/50 p-3 rounded text-sm hover:bg-slate-700 transition"
+                  >
+                    <span className="text-purple-400 font-semibold">#{i + 1}</span> {m}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Ej: e2 a e4"
+                className="flex-1 p-3 rounded-lg bg-slate-700 text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-purple-500 transition"
+                value={moveInput}
+                onChange={(e) => setMoveInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+              />
+              <button
+                onClick={enviarMovimiento}
+                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 px-6 py-3 rounded-lg font-semibold transition transform hover:scale-105"
+              >
+                Enviar
+              </button>
+            </div>
+          </div>
+
+          {/* Panel del tablero (placeholder) */}
+          <div className="bg-slate-800/90 backdrop-blur-sm p-6 rounded-2xl shadow-2xl border border-slate-700">
+            <h2 className="text-xl font-bold mb-4">🎯 Tablero de Ajedrez</h2>
+            
+            <div className="aspect-square bg-slate-700 rounded-lg flex items-center justify-center">
+              <div className="text-center text-slate-400">
+                <div className="text-6xl mb-4">♟️</div>
+                <p>Tablero de ajedrez próximamente</p>
+                <p className="text-sm mt-2">
+                  Integrar con react-chessboard
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-3">
+              <button className="w-full bg-yellow-600 hover:bg-yellow-700 py-3 rounded-lg font-semibold transition">
+                ⏸️ Pausar partida
+              </button>
+              <button className="w-full bg-red-600 hover:bg-red-700 py-3 rounded-lg font-semibold transition">
+                🏳️ Rendirse
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-
-      <button
-        onClick={() => router.push("/home")}
-        className="mt-6 text-slate-400 hover:text-white transition"
-      >
-        ← Volver al Home
-      </button>
     </div>
   );
 }
