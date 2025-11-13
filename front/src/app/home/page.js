@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { gameAPI, userAPI } from "@/lib/api";
+import { gameAPI, userAPI } from "../../../lib/api";
 
 export default function HomePage() {
   const router = useRouter();

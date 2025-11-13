@@ -11,7 +11,7 @@ import {
   onPlayerLeft,
   removeListener 
 } from "@/lib/websocket";
-import { gameAPI, moveAPI } from "@/lib/api";
+import { gameAPI, moveAPI } from "../../../lib/api";
 
 export default function GamePage() {
   const { id } = useParams();

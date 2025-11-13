@@ -1,6 +1,3 @@
-// app/layout.js
-import './globals.css'
-
 export const metadata = {
   title: 'Chess Game - Juego de Ajedrez Online',
   description: 'Plataforma de ajedrez online con partidas en tiempo real',
