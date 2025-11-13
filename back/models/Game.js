@@ -15,41 +15,58 @@ class Game {
   static async create(player1_id) {
     const query = `
       INSERT INTO games (player1_id, status)
-      VALUES (${player1_id}, 'waiting');
+      VALUES (?, 'waiting')
     `;
-    return await realizarQuery(query);
+    return await realizarQuery(query, [player1_id]);
   }
 
   // Unirse a una partida
   static async join(game_id, player2_id) {
     const query = `
       UPDATE games
-      SET player2_id=${player2_id}, status='ongoing'
-      WHERE id=${game_id} AND status='waiting';
+      SET player2_id = ?, status = 'ongoing'
+      WHERE id = ? AND status = 'waiting'
     `;
-    return await realizarQuery(query);
+    return await realizarQuery(query, [player2_id, game_id]);
   }
 
   // Finalizar partida
   static async finish(game_id, winner_id) {
     const query = `
       UPDATE games
-      SET status='finished', winner_id=${winner_id}
-      WHERE id=${game_id};
+      SET status = 'finished', winner_id = ?
+      WHERE id = ?
     `;
-    return await realizarQuery(query);
+    return await realizarQuery(query, [winner_id, game_id]);
   }
 
   // Obtener partida por ID
   static async findById(id) {
-    const query = `SELECT * FROM games WHERE id=${id} LIMIT 1;`;
-    const result = await realizarQuery(query);
+    const query = `SELECT * FROM games WHERE id = ? LIMIT 1`;
+    const result = await realizarQuery(query, [id]);
     return result[0];
   }
 
   // Obtener todas las partidas disponibles
   static async getAvailable() {
-    return await realizarQuery(`SELECT * FROM games WHERE status='waiting';`);
+    const query = `SELECT * FROM games WHERE status = 'waiting'`;
+    return await realizarQuery(query);
+  }
+
+  // Obtener todas las partidas
+  static async getAll() {
+    const query = `SELECT * FROM games ORDER BY created_at DESC`;
+    return await realizarQuery(query);
+  }
+
+  // Obtener partidas de un usuario
+  static async getByUser(userId) {
+    const query = `
+      SELECT * FROM games 
+      WHERE player1_id = ? OR player2_id = ?
+      ORDER BY created_at DESC
+    `;
+    return await realizarQuery(query, [userId, userId]);
   }
 }
 

@@ -15,17 +15,42 @@ class Move {
   static async create(game_id, player_id, move_notation, move_number) {
     const query = `
       INSERT INTO moves (game_id, player_id, move_notation, move_number)
-      VALUES (${game_id}, ${player_id}, '${move_notation}', ${move_number});
+      VALUES (?, ?, ?, ?)
     `;
-    return await realizarQuery(query);
+    return await realizarQuery(query, [game_id, player_id, move_notation, move_number]);
   }
 
   // Obtener todos los movimientos de una partida
   static async getByGame(game_id) {
     const query = `
-      SELECT * FROM moves WHERE game_id=${game_id} ORDER BY move_number ASC;
+      SELECT * FROM moves 
+      WHERE game_id = ? 
+      ORDER BY move_number ASC
     `;
-    return await realizarQuery(query);
+    return await realizarQuery(query, [game_id]);
+  }
+
+  // Obtener último movimiento de una partida
+  static async getLastMove(game_id) {
+    const query = `
+      SELECT * FROM moves 
+      WHERE game_id = ? 
+      ORDER BY move_number DESC 
+      LIMIT 1
+    `;
+    const result = await realizarQuery(query, [game_id]);
+    return result[0];
+  }
+
+  // Contar movimientos de una partida
+  static async countByGame(game_id) {
+    const query = `
+      SELECT COUNT(*) as total 
+      FROM moves 
+      WHERE game_id = ?
+    `;
+    const result = await realizarQuery(query, [game_id]);
+    return result[0].total;
   }
 }
 

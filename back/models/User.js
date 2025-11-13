@@ -14,44 +14,45 @@ class User {
   static async create(username, email, password_hash) {
     const query = `
       INSERT INTO users (username, email, password_hash)
-      VALUES ('${username}', '${email}', '${password_hash}');
+      VALUES (?, ?, ?)
     `;
-    return await realizarQuery(query);
+    return await realizarQuery(query, [username, email, password_hash]);
   }
 
   // Buscar usuario por email
   static async findByEmail(email) {
-    const query = `SELECT * FROM users WHERE email='${email}' LIMIT 1;`;
-    const result = await realizarQuery(query);
+    const query = `SELECT * FROM users WHERE email = ? LIMIT 1`;
+    const result = await realizarQuery(query, [email]);
     return result[0];
   }
 
   // Buscar usuario por ID
   static async findById(id) {
-    const query = `SELECT * FROM users WHERE id=${id} LIMIT 1;`;
-    const result = await realizarQuery(query);
+    const query = `SELECT * FROM users WHERE id = ? LIMIT 1`;
+    const result = await realizarQuery(query, [id]);
     return result[0];
   }
 
   // Leer todos los usuarios
   static async getAll() {
-    return await realizarQuery(`SELECT id, username, email, created_at FROM users;`);
+    const query = `SELECT id, username, email, created_at FROM users`;
+    return await realizarQuery(query);
   }
 
   // Actualizar usuario
   static async update(id, username, email) {
     const query = `
       UPDATE users
-      SET username='${username}', email='${email}'
-      WHERE id=${id};
+      SET username = ?, email = ?
+      WHERE id = ?
     `;
-    return await realizarQuery(query);
+    return await realizarQuery(query, [username, email, id]);
   }
 
   // Eliminar usuario
   static async delete(id) {
-    const query = `DELETE FROM users WHERE id=${id};`;
-    return await realizarQuery(query);
+    const query = `DELETE FROM users WHERE id = ?`;
+    return await realizarQuery(query, [id]);
   }
 }
 
