@@ -1,7 +1,7 @@
 // components/GameList.js
 "use client";
 import { useState, useEffect } from "react";
-import { gameAPI } from "@/lib/api";
+import { gameAPI } from "../../../lib/api";
 
 export default function GameList({ onJoinGame, refreshTrigger }) {
   const [games, setGames] = useState([]);
