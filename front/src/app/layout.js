@@ -1,17 +1,22 @@
+// app/layout.js
+import './globals.css'
+
 export const metadata = {
-  title: 'Ajedrez Online',
-  description: 'Juega ajedrez en línea con amigos',
+  title: 'Chess Game - Juego de Ajedrez Online',
+  description: 'Plataforma de ajedrez online con partidas en tiempo real',
+  keywords: 'ajedrez, chess, juego online, partidas en vivo',
 }
 
 export default function RootLayout({ children }) {
   return (
     <html lang="es">
       <head>
-        <meta charSet="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="icon" href="/favicon.ico" />
       </head>
-      <body style={{ margin: 0, padding: 0, fontFamily: 'Arial, sans-serif' }}>
-        {children}
+      <body className="antialiased">
+        <main className="min-h-screen">
+          {children}
+        </main>
       </body>
     </html>
   )
