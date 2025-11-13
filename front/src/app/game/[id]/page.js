@@ -1,19 +1,17 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import {
-  connectSocket,
-  joinGame,
-  leaveGame,
-  sendMove,
-  onMove,
-  onPlayerJoined,
+import { 
+  connectSocket, 
+  joinGame, 
+  leaveGame, 
+  sendMove, 
+  onMove, 
+  onPlayerJoined, 
   onPlayerLeft,
-  removeListener
-} from "@/lib/websocket";
-import { gameAPI, moveAPI } from "@/lib/api";
-import ChessBoard from "@/components/ChessBoard";
-import PlayerInfo from "@/components/PlayerInfo";
+  removeListener 
+} from "../../../lib/websocket";
+import { gameAPI, moveAPI } from "../../../lib/api";
 
 export default function GamePage() {
   const { id } = useParams();
@@ -21,9 +19,9 @@ export default function GamePage() {
   const [user, setUser] = useState(null);
   const [game, setGame] = useState(null);
   const [moves, setMoves] = useState([]);
+  const [moveInput, setMoveInput] = useState("");
   const [playersCount, setPlayersCount] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [currentTurn, setCurrentTurn] = useState("white"); // white o black
 
   useEffect(() => {
     // Verificar usuario
@@ -58,8 +56,6 @@ export default function GamePage() {
         ...prev,
         `${data.player}: ${data.move} (${data.moveNotation || ""})`
       ]);
-      // Cambiar turno
-      setCurrentTurn(prev => prev === "white" ? "black" : "white");
     });
 
     // Cleanup
@@ -83,9 +79,6 @@ export default function GamePage() {
         (m) => `Jugador ${m.player_id}: ${m.move_notation}`
       );
       setMoves(formattedMoves);
-     
-      // Determinar turno según cantidad de movimientos
-      setCurrentTurn(movesData.length % 2 === 0 ? "white" : "black");
     } catch (err) {
       console.error("Error al cargar partida:", err);
     } finally {
@@ -93,25 +86,29 @@ export default function GamePage() {
     }
   };
 
-  const handleMove = async (moveNotation, pieceType) => {
-    if (!user) return;
+  const enviarMovimiento = async () => {
+    if (!moveInput.trim() || !user) return;
 
     try {
       // Guardar en BD
       const moveNumber = moves.length + 1;
-      await moveAPI.add(id, moveNotation, moveNumber);
+      await moveAPI.add(id, moveInput, moveNumber);
 
       // Enviar por WebSocket
-      sendMove(id, moveNotation, user.username, moveNotation);
+      sendMove(id, moveInput, user.username, moveInput);
 
       // Agregar a la lista local
-      setMoves((prev) => [...prev, `${user.username}: ${moveNotation}`]);
-     
-      // Cambiar turno
-      setCurrentTurn(prev => prev === "white" ? "black" : "white");
+      setMoves((prev) => [...prev, `${user.username}: ${moveInput}`]);
+      setMoveInput("");
     } catch (err) {
       console.error("Error al enviar movimiento:", err);
       alert(err.message || "Error al enviar movimiento");
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter") {
+      enviarMovimiento();
     }
   };
 
@@ -126,21 +123,9 @@ export default function GamePage() {
     );
   }
 
-  const player1 = game ? {
-    id: game.player1_id,
-    username: `Jugador ${game.player1_id}`
-  } : null;
- 
-  const player2 = game?.player2_id ? {
-    id: game.player2_id,
-    username: `Jugador ${game.player2_id}`
-  } : null;
-
-  const isPlayer1Turn = currentTurn === "white";
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-8">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">
@@ -150,13 +135,6 @@ export default function GamePage() {
             <div className="bg-slate-800 px-4 py-2 rounded-lg">
               👥 {playersCount} jugador{playersCount !== 1 ? "es" : ""}
             </div>
-            {game && (
-              <div className="bg-slate-800 px-4 py-2 rounded-lg">
-                {game.status === "waiting" && "⏳ Esperando jugador"}
-                {game.status === "ongoing" && "🎮 En curso"}
-                {game.status === "finished" && "✅ Finalizada"}
-              </div>
-            )}
             <button
               onClick={() => router.push("/home")}
               className="bg-slate-700 hover:bg-slate-600 px-6 py-2 rounded-lg font-semibold transition"
@@ -166,84 +144,90 @@ export default function GamePage() {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-[1fr_600px_1fr] gap-6 items-start">
-          {/* Panel izquierdo - Jugador 1 */}
-          <div className="space-y-6">
-            <PlayerInfo
-              player={player1}
-              isCurrentTurn={isPlayer1Turn}
-              isOnline={true}
-              capturedPieces={[]}
-              timeRemaining={null}
-            />
-           
-            {/* Info adicional */}
-            <div className="bg-slate-800/90 backdrop-blur-sm p-4 rounded-xl border border-slate-700">
-              <h3 className="font-bold mb-2">📊 Estadísticas</h3>
-              <div className="text-sm text-slate-400 space-y-1">
-                <p>Movimientos: {moves.length}</p>
-                <p>Turno: {currentTurn === "white" ? "Blancas" : "Negras"}</p>
+        {/* Estado de la partida */}
+        {game && (
+          <div className="bg-slate-800/90 backdrop-blur-sm p-4 rounded-lg mb-6 border border-slate-700">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-slate-400">Estado:</p>
+                <p className="font-semibold text-lg">
+                  {game.status === "waiting" && "⏳ Esperando jugador"}
+                  {game.status === "ongoing" && "🎮 En curso"}
+                  {game.status === "finished" && "✅ Finalizada"}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-slate-400">Jugadores:</p>
+                <p className="font-semibold">
+                  {game.player1_id} vs {game.player2_id || "..."}
+                </p>
               </div>
             </div>
           </div>
+        )}
 
-          {/* Panel central - Tablero */}
-          <div className="space-y-4">
-            <ChessBoard
-              onMove={handleMove}
-              disabled={game?.status !== "ongoing"}
-            />
-           
-            {game?.status === "waiting" && (
-              <div className="text-center bg-yellow-600/20 border border-yellow-600 rounded-lg p-3">
-                <p className="font-semibold">⏳ Esperando a que se una otro jugador...</p>
-              </div>
-            )}
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Panel de movimientos */}
+          <div className="bg-slate-800/90 backdrop-blur-sm p-6 rounded-2xl shadow-2xl border border-slate-700">
+            <h2 className="text-xl font-bold mb-4">📜 Historial de Movimientos</h2>
+            
+            <div className="h-96 overflow-y-auto bg-slate-900/50 p-4 rounded-lg mb-4 space-y-2">
+              {moves.length === 0 ? (
+                <p className="text-slate-400 text-sm text-center py-8">
+                  Aún no hay movimientos
+                </p>
+              ) : (
+                moves.map((m, i) => (
+                  <div
+                    key={i}
+                    className="bg-slate-700/50 p-3 rounded text-sm hover:bg-slate-700 transition"
+                  >
+                    <span className="text-purple-400 font-semibold">#{i + 1}</span> {m}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Ej: e2 a e4"
+                className="flex-1 p-3 rounded-lg bg-slate-700 text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-purple-500 transition"
+                value={moveInput}
+                onChange={(e) => setMoveInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+              />
+              <button
+                onClick={enviarMovimiento}
+                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 px-6 py-3 rounded-lg font-semibold transition transform hover:scale-105"
+              >
+                Enviar
+              </button>
+            </div>
           </div>
 
-          {/* Panel derecho - Jugador 2 y Movimientos */}
-          <div className="space-y-6">
-            <PlayerInfo
-              player={player2 || { username: "Esperando..." }}
-              isCurrentTurn={!isPlayer1Turn}
-              isOnline={!!player2}
-              capturedPieces={[]}
-              timeRemaining={null}
-            />
-
-            {/* Historial de movimientos */}
-            <div className="bg-slate-800/90 backdrop-blur-sm p-6 rounded-2xl border border-slate-700">
-              <h3 className="text-xl font-bold mb-4">📜 Movimientos</h3>
-             
-              <div className="h-96 overflow-y-auto bg-slate-900/50 p-4 rounded-lg space-y-2">
-                {moves.length === 0 ? (
-                  <p className="text-slate-400 text-sm text-center py-8">
-                    Aún no hay movimientos
-                  </p>
-                ) : (
-                  moves.map((m, i) => (
-                    <div
-                      key={i}
-                      className="bg-slate-700/50 p-3 rounded text-sm hover:bg-slate-700 transition"
-                    >
-                      <span className="text-purple-400 font-semibold">#{i + 1}</span> {m}
-                    </div>
-                  ))
-                )}
+          {/* Panel del tablero (placeholder) */}
+          <div className="bg-slate-800/90 backdrop-blur-sm p-6 rounded-2xl shadow-2xl border border-slate-700">
+            <h2 className="text-xl font-bold mb-4">🎯 Tablero de Ajedrez</h2>
+            
+            <div className="aspect-square bg-slate-700 rounded-lg flex items-center justify-center">
+              <div className="text-center text-slate-400">
+                <div className="text-6xl mb-4">♟️</div>
+                <p>Tablero de ajedrez próximamente</p>
+                <p className="text-sm mt-2">
+                  Integrar con react-chessboard
+                </p>
               </div>
             </div>
 
-            {/* Acciones de la partida */}
-            {game?.status === "ongoing" && (
-              <div className="space-y-3">
-                <button className="w-full bg-yellow-600 hover:bg-yellow-700 py-3 rounded-lg font-semibold transition">
-                  ⏸️ Pausar partida
-                </button>
-                <button className="w-full bg-red-600 hover:bg-red-700 py-3 rounded-lg font-semibold transition">
-                  🏳️ Rendirse
-                </button>
-              </div>
-            )}
+            <div className="mt-6 space-y-3">
+              <button className="w-full bg-yellow-600 hover:bg-yellow-700 py-3 rounded-lg font-semibold transition">
+                ⏸️ Pausar partida
+              </button>
+              <button className="w-full bg-red-600 hover:bg-red-700 py-3 rounded-lg font-semibold transition">
+                🏳️ Rendirse
+              </button>
+            </div>
           </div>
         </div>
       </div>
