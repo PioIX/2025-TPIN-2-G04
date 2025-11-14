@@ -16,6 +16,93 @@ const tableroInicial = [
   ["R", "N", "B", "Q", "K", "B", "N", "R"]
 ];
 
+// Función para verificar si una pieza es blanca
+const esBlanca = (pieza) => pieza === pieza.toUpperCase();
+
+// Lógica de validación para cada tipo de pieza
+const esMovimientoValido = (pieza, desdeFila, desdeCol, hastaFila, hastaCol, tablero) => {
+  const direccion = esBlanca(pieza) ? 1 : -1; // Dirección para las piezas negras o blancas
+  
+  switch (pieza.toLowerCase()) {
+    case "p": {
+      // Movimiento de peón
+      if (desdeCol === hastaCol && tablero[hastaFila][hastaCol] === "") {
+        // Movimiento normal de 1 casilla hacia adelante
+        if (Math.abs(hastaFila - desdeFila) === 1) return true;
+        // Movimiento inicial del peón (2 casillas)
+        if ((esBlanca(pieza) && desdeFila === 6) || (!esBlanca(pieza) && desdeFila === 1)) {
+          if (Math.abs(hastaFila - desdeFila) === 2) return true;
+        }
+      }
+      // Captura de peón: una casilla diagonal, pero solo si hay una pieza enemiga
+      if (Math.abs(desdeCol - hastaCol) === 1 && Math.abs(hastaFila - desdeFila) === 1) {
+        if (tablero[hastaFila][hastaCol] !== "" && esBlanca(pieza) !== esBlanca(tablero[hastaFila][hastaCol])) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    case "r": {
+      // Movimiento de torre
+      if (desdeFila !== hastaFila && desdeCol !== hastaCol) return false; // Solo en línea recta
+      // Verificar si el camino está libre
+      if (desdeFila === hastaFila) {
+        const rango = Math.min(desdeCol, hastaCol) + 1;
+        const final = Math.max(desdeCol, hastaCol);
+        for (let i = rango; i < final; i++) {
+          if (tablero[desdeFila][i] !== "") return false;
+        }
+      }
+      if (desdeCol === hastaCol) {
+        const rango = Math.min(desdeFila, hastaFila) + 1;
+        const final = Math.max(desdeFila, hastaFila);
+        for (let i = rango; i < final; i++) {
+          if (tablero[i][desdeCol] !== "") return false;
+        }
+      }
+      return true;
+    }
+
+    case "n": {
+      // Movimiento de caballo
+      const dx = Math.abs(desdeCol - hastaCol);
+      const dy = Math.abs(desdeFila - hastaFila);
+      return (dx === 2 && dy === 1) || (dx === 1 && dy === 2);
+    }
+
+    case "b": {
+      // Movimiento de alfil
+      if (Math.abs(desdeFila - hastaFila) !== Math.abs(desdeCol - hastaCol)) return false;
+      // Verificar si el camino está libre
+      const pasoFila = desdeFila < hastaFila ? 1 : -1;
+      const pasoCol = desdeCol < hastaCol ? 1 : -1;
+      let fila = desdeFila + pasoFila;
+      let col = desdeCol + pasoCol;
+      while (fila !== hastaFila && col !== hastaCol) {
+        if (tablero[fila][col] !== "") return false;
+        fila += pasoFila;
+        col += pasoCol;
+      }
+      return true;
+    }
+
+    case "q": {
+      // Movimiento de reina (combinación de torre y alfil)
+      return esMovimientoValido("r", desdeFila, desdeCol, hastaFila, hastaCol, tablero) ||
+             esMovimientoValido("b", desdeFila, desdeCol, hastaFila, hastaCol, tablero);
+    }
+
+    case "k": {
+      // Movimiento de rey
+      return Math.abs(desdeFila - hastaFila) <= 1 && Math.abs(desdeCol - hastaCol) <= 1;
+    }
+
+    default:
+      return false;
+  }
+};
+
 export default function GamePage({ params }) {
   const { id: partidaId } = params;
   const router = useRouter();
@@ -43,22 +130,26 @@ export default function GamePage({ params }) {
       // Seleccionar pieza
       const pieza = tablero[fila][col];
       if (!pieza) return;
-      
+
       const esBlanca = pieza === pieza.toUpperCase();
       const colorPieza = esBlanca ? "white" : "black";
-      
+
+      // Verificar que el turno corresponde
       if (colorPieza !== turno) return;
 
       setSeleccionado({ fila, col });
     } else {
       // Mover pieza
       const pieza = tablero[seleccionado.fila][seleccionado.col];
-      
-      // Crear nuevo tablero
+
+      if (!esMovimientoValido(pieza, seleccionado.fila, seleccionado.col, fila, col, tablero)) {
+        return; // Si el movimiento no es válido, no se mueve
+      }
+
       const nuevoTablero = tablero.map(f => [...f]);
       nuevoTablero[fila][col] = pieza;
       nuevoTablero[seleccionado.fila][seleccionado.col] = "";
-      
+
       setTablero(nuevoTablero);
       setTurno(turno === "white" ? "black" : "white");
       setSeleccionado(null);
@@ -69,7 +160,7 @@ export default function GamePage({ params }) {
     <div className={styles.homeContainer}>
       <div className={styles.main}>
         <h1 className={styles.titulo}>🎯 Partida: {partidaId}</h1>
-        
+
         <div className={styles.infoContainer}>
           <p className={styles.infoTexto}>
             Jugador: <strong className={styles.destaque}>{user?.nombre || "..."}</strong>
