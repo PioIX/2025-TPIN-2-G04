@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import styles from "./page.module.css";
 import TableroAjedrez from "../../../../componentes/TableroAjedrez";
 
-// Tablero inicial de ajedrez
+// TABLERO INICIAL
 const tableroInicial = [
   ["r", "n", "b", "q", "k", "b", "n", "r"],
   ["p", "p", "p", "p", "p", "p", "p", "p"],
@@ -13,180 +13,237 @@ const tableroInicial = [
   ["", "", "", "", "", "", "", ""],
   ["", "", "", "", "", "", "", ""],
   ["P", "P", "P", "P", "P", "P", "P", "P"],
-  ["R", "N", "B", "Q", "K", "B", "N", "R"]
+  ["R", "N", "B", "Q", "K", "B", "N", "R"],
 ];
 
-// Función para verificar si una pieza es blanca
-const esBlanca = (pieza) => pieza === pieza.toUpperCase();
+// FUNCIONES DE MOVIMIENTO
+const esMovimientoValido = (pieza, origen, destino, tablero, turno) => {
+  if (!pieza) return false;
 
-// Lógica de validación para cada tipo de pieza
-const esMovimientoValido = (pieza, desdeFila, desdeCol, hastaFila, hastaCol, tablero) => {
-  const direccion = esBlanca(pieza) ? 1 : -1; // Dirección para las piezas negras o blancas
-  
-  switch (pieza.toLowerCase()) {
-    case "p": {
-      // Movimiento de peón
-      if (desdeCol === hastaCol && tablero[hastaFila][hastaCol] === "") {
-        // Movimiento normal de 1 casilla hacia adelante
-        if (Math.abs(hastaFila - desdeFila) === 1) return true;
-        // Movimiento inicial del peón (2 casillas)
-        if ((esBlanca(pieza) && desdeFila === 6) || (!esBlanca(pieza) && desdeFila === 1)) {
-          if (Math.abs(hastaFila - desdeFila) === 2) return true;
-        }
-      }
-      // Captura de peón: una casilla diagonal, pero solo si hay una pieza enemiga
-      if (Math.abs(desdeCol - hastaCol) === 1 && Math.abs(hastaFila - desdeFila) === 1) {
-        if (tablero[hastaFila][hastaCol] !== "" && esBlanca(pieza) !== esBlanca(tablero[hastaFila][hastaCol])) {
-          return true;
-        }
-      }
-      return false;
-    }
+  const esBlanca = pieza === pieza.toUpperCase();
+  const color = esBlanca ? "white" : "black";
 
-    case "r": {
-      // Movimiento de torre
-      if (desdeFila !== hastaFila && desdeCol !== hastaCol) return false; // Solo en línea recta
-      // Verificar si el camino está libre
-      if (desdeFila === hastaFila) {
-        const rango = Math.min(desdeCol, hastaCol) + 1;
-        const final = Math.max(desdeCol, hastaCol);
-        for (let i = rango; i < final; i++) {
-          if (tablero[desdeFila][i] !== "") return false;
-        }
-      }
-      if (desdeCol === hastaCol) {
-        const rango = Math.min(desdeFila, hastaFila) + 1;
-        const final = Math.max(desdeFila, hastaFila);
-        for (let i = rango; i < final; i++) {
-          if (tablero[i][desdeCol] !== "") return false;
-        }
-      }
+  if (color !== turno) return false;
+
+  const [oF, oC] = origen;
+  const [dF, dC] = destino;
+  const df = dF - oF;
+  const dc = dC - oC;
+
+  const destinoPieza = tablero[dF][dC];
+  const destinoEsBlanca =
+    destinoPieza && destinoPieza === destinoPieza.toUpperCase();
+
+  if (destinoPieza && destinoEsBlanca === esBlanca) return false;
+
+  const absDf = Math.abs(df);
+  const absDc = Math.abs(dc);
+
+  // PEONES BLANCOS
+  if (pieza === "P") {
+    if (df === -1 && dc === 0 && !destinoPieza) return true;
+    if (oF === 6 && df === -2 && dc === 0 && !destinoPieza && !tablero[5][oC])
       return true;
-    }
-
-    case "n": {
-      // Movimiento de caballo
-      const dx = Math.abs(desdeCol - hastaCol);
-      const dy = Math.abs(desdeFila - hastaFila);
-      return (dx === 2 && dy === 1) || (dx === 1 && dy === 2);
-    }
-
-    case "b": {
-      // Movimiento de alfil
-      if (Math.abs(desdeFila - hastaFila) !== Math.abs(desdeCol - hastaCol)) return false;
-      // Verificar si el camino está libre
-      const pasoFila = desdeFila < hastaFila ? 1 : -1;
-      const pasoCol = desdeCol < hastaCol ? 1 : -1;
-      let fila = desdeFila + pasoFila;
-      let col = desdeCol + pasoCol;
-      while (fila !== hastaFila && col !== hastaCol) {
-        if (tablero[fila][col] !== "") return false;
-        fila += pasoFila;
-        col += pasoCol;
-      }
+    if (
+      df === -1 &&
+      absDc === 1 &&
+      destinoPieza &&
+      destinoPieza === destinoPieza.toLowerCase()
+    )
       return true;
-    }
-
-    case "q": {
-      // Movimiento de reina (combinación de torre y alfil)
-      return esMovimientoValido("r", desdeFila, desdeCol, hastaFila, hastaCol, tablero) ||
-             esMovimientoValido("b", desdeFila, desdeCol, hastaFila, hastaCol, tablero);
-    }
-
-    case "k": {
-      // Movimiento de rey
-      return Math.abs(desdeFila - hastaFila) <= 1 && Math.abs(desdeCol - hastaCol) <= 1;
-    }
-
-    default:
-      return false;
+    return false;
   }
+
+  // PEONES NEGROS
+  if (pieza === "p") {
+    if (df === 1 && dc === 0 && !destinoPieza) return true;
+    if (oF === 1 && df === 2 && dc === 0 && !destinoPieza && !tablero[2][oC])
+      return true;
+    if (
+      df === 1 &&
+      absDc === 1 &&
+      destinoPieza &&
+      destinoPieza === destinoPieza.toUpperCase()
+    )
+      return true;
+    return false;
+  }
+
+  // TORRE
+  if (pieza.toLowerCase() === "r") {
+    if (df !== 0 && dc !== 0) return false;
+    const pasos = Math.max(absDf, absDc);
+    for (let i = 1; i < pasos; i++) {
+      const f = oF + (df === 0 ? 0 : Math.sign(df) * i);
+      const c = oC + (dc === 0 ? 0 : Math.sign(dc) * i);
+      if (tablero[f][c]) return false;
+    }
+    return true;
+  }
+
+  // ALFIL
+  if (pieza.toLowerCase() === "b") {
+    if (absDf !== absDc) return false;
+    for (let i = 1; i < absDf; i++) {
+      const f = oF + Math.sign(df) * i;
+      const c = oC + Math.sign(dc) * i;
+      if (tablero[f][c]) return false;
+    }
+    return true;
+  }
+
+  // DAMA
+  if (pieza.toLowerCase() === "q") {
+    if (df === 0 || dc === 0) {
+      const pasos = Math.max(absDf, absDc);
+      for (let i = 1; i < pasos; i++) {
+        const f = oF + (df === 0 ? 0 : Math.sign(df) * i);
+        const c = oC + (dc === 0 ? 0 : Math.sign(dc) * i);
+        if (tablero[f][c]) return false;
+      }
+      return true;
+    }
+    if (absDf === absDc) {
+      for (let i = 1; i < absDf; i++) {
+        const f = oF + Math.sign(df) * i;
+        const c = oC + Math.sign(dc) * i;
+        if (tablero[f][c]) return false;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  // CABALLO
+  if (pieza.toLowerCase() === "n") {
+    return (
+      (absDf === 2 && absDc === 1) ||
+      (absDf === 1 && absDc === 2)
+    );
+  }
+
+  // REY
+  if (pieza.toLowerCase() === "k") {
+    return absDf <= 1 && absDc <= 1;
+  }
+
+  return false;
 };
 
 export default function GamePage({ params }) {
-  const { id: partidaId } = params;
   const router = useRouter();
+  const { id: partidaId } = params;
 
   const [user, setUser] = useState(null);
   const [tablero, setTablero] = useState(tableroInicial);
   const [turno, setTurno] = useState("white");
   const [seleccionado, setSeleccionado] = useState(null);
 
+  // MODAL
+  const [modalVisible, setModalVisible] = useState(false);
+  const [ganador, setGanador] = useState("");
+
+  // Cargar usuario
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (!storedUser) {
       router.push("/login");
       return;
     }
-    const u = JSON.parse(storedUser);
-    setUser(u);
+    setUser(JSON.parse(storedUser));
   }, [router]);
 
+  // DETECTAR FINAL DE PARTIDA
+  useEffect(() => {
+    let reyBlanco = false;
+    let reyNegro = false;
+
+    for (let f = 0; f < 8; f++) {
+      for (let c = 0; c < 8; c++) {
+        if (tablero[f][c] === "K") reyBlanco = true;
+        if (tablero[f][c] === "k") reyNegro = true;
+      }
+    }
+
+    if (!reyBlanco || !reyNegro) {
+      setGanador(!reyBlanco ? "Negras ⚫" : "Blancas ⚪");
+      setModalVisible(true);
+    }
+  }, [tablero]);
+
+  // Mover piezas
   const handleMovimiento = (idx) => {
     const fila = Math.floor(idx / 8);
     const col = idx % 8;
 
     if (!seleccionado) {
-      // Seleccionar pieza
       const pieza = tablero[fila][col];
       if (!pieza) return;
 
       const esBlanca = pieza === pieza.toUpperCase();
-      const colorPieza = esBlanca ? "white" : "black";
+      const color = esBlanca ? "white" : "black";
 
-      // Verificar que el turno corresponde
-      if (colorPieza !== turno) return;
+      if (color !== turno) return;
 
       setSeleccionado({ fila, col });
-    } else {
-      // Mover pieza
-      const pieza = tablero[seleccionado.fila][seleccionado.col];
-
-      if (!esMovimientoValido(pieza, seleccionado.fila, seleccionado.col, fila, col, tablero)) {
-        return; // Si el movimiento no es válido, no se mueve
-      }
-
-      const nuevoTablero = tablero.map(f => [...f]);
-      nuevoTablero[fila][col] = pieza;
-      nuevoTablero[seleccionado.fila][seleccionado.col] = "";
-
-      setTablero(nuevoTablero);
-      setTurno(turno === "white" ? "black" : "white");
-      setSeleccionado(null);
+      return;
     }
+
+    const { fila: oF, col: oC } = seleccionado;
+    const pieza = tablero[oF][oC];
+
+    if (!esMovimientoValido(pieza, [oF, oC], [fila, col], tablero, turno)) {
+      setSeleccionado(null);
+      return;
+    }
+
+    const nuevo = tablero.map((f) => [...f]);
+    nuevo[fila][col] = pieza;
+    nuevo[oF][oC] = "";
+
+    setTablero(nuevo);
+    setTurno(turno === "white" ? "black" : "white");
+    setSeleccionado(null);
   };
 
   return (
     <div className={styles.homeContainer}>
       <div className={styles.main}>
-        <h1 className={styles.titulo}>🎯 Partida: {partidaId}</h1>
+        <h1 className={styles.titulo} style={{ fontFamily: "Cinzel" }}>
+          ♟ Partida: {partidaId}
+        </h1>
 
-        <div className={styles.infoContainer}>
-          <p className={styles.infoTexto}>
-            Jugador: <strong className={styles.destaque}>{user?.nombre || "..."}</strong>
-          </p>
-          <p className={styles.infoTexto}>
-            Turno actual: <strong className={styles.destaque}>
-              {turno === "white" ? "Blancas ⚪" : "Negras ⚫"}
-            </strong>
-          </p>
-          {seleccionado && (
-            <p className={styles.infoTexto}>
-              Pieza seleccionada: <strong className={styles.destaque}>
-                Fila {seleccionado.fila}, Col {seleccionado.col}
-              </strong>
-            </p>
-          )}
-        </div>
+        <p className={styles.infoTexto} style={{ fontFamily: "Cinzel" }}>
+          Jugador: <strong>{user?.nombre}</strong>
+        </p>
+        <p className={styles.infoTexto} style={{ fontFamily: "Cinzel" }}>
+          Turno actual: {turno === "white" ? "Blancas ⚪" : "Negras ⚫"}
+        </p>
 
         <div className={styles.tableroContainer}>
           <TableroAjedrez
             tablero={tablero}
-            onMovimiento={handleMovimiento}
             seleccionado={seleccionado}
+            onMovimiento={handleMovimiento}
           />
         </div>
       </div>
+
+      {/* MODAL DE FIN DE PARTIDA */}
+      {modalVisible && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalBox}>
+            <h2 className={styles.modalTitle}>¡Partida finalizada!</h2>
+            <p className={styles.modalWinner}>Ganador: {ganador}</p>
+            <button
+              className={styles.modalButton}
+              onClick={() => router.push("/home")}
+            >
+              Volver al Home
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
