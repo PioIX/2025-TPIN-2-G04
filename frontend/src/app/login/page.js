@@ -6,13 +6,12 @@ import styles from "./page.module.css";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [step, setStep] = useState("login"); // login → verify
+  const [step, setStep] = useState("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [codigo, setCodigo] = useState("");
   const [error, setError] = useState("");
 
-  // LOGIN SIMULADO
   const handleLogin = () => {
     if (!email || !password) {
       setError("Debes completar todos los campos");
@@ -22,7 +21,6 @@ export default function LoginPage() {
     setStep("verify");
   };
 
-  // VERIFICACIÓN SIMULADA
   const handleVerificarCodigo = () => {
     if (!codigo) {
       setError("Debes ingresar el código");
@@ -30,7 +28,6 @@ export default function LoginPage() {
     }
     setError("");
 
-    // Creamos usuario con ID dinámico
     const fakeUser = {
       id: Date.now(),
       username: email.split("@")[0],
@@ -44,7 +41,6 @@ export default function LoginPage() {
     router.push("/home");
   };
 
-  // LOGIN RÁPIDO DE PRUEBA
   const loginRapido = (usuario) => {
     const users = {
       felipe: { id: 1, username: "Felipe", email: "felipe@test.com" },
@@ -81,13 +77,13 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
             />
             <button className={styles.button} onClick={handleLogin}>
-              Entrar
+              Iniciar Sesión
             </button>
           </>
         ) : (
           <>
             <p className={styles.textInfo}>
-              Ingresa cualquier código para continuar
+              Ingresá cualquier código para continuar
             </p>
             <input
               type="text"
