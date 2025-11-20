@@ -7,16 +7,19 @@
   background: #0f172a;
   color: white;
   font-family: Arial, sans-serif;
+  padding: 2rem; 
 }
+
 
 /* Barra lateral */
 .barra {
-  background: #1e293b;
+  background: #2d3b4f;
   padding: 2rem;
   width: 250px;
   min-height: 100vh;
   border-right: 2px solid #334155;
 }
+
 
 .barra h2 {
   margin-bottom: 1rem;
@@ -25,8 +28,9 @@
 
 .barra p {
   margin-bottom: 2rem;
-  color: #cbd5e1;
+  color: #a0aec0; 
 }
+
 
 .barra hr {
   border: none;
